@@ -2014,7 +2014,8 @@ document.addEventListener("DOMContentLoaded", function() {
   initPromoSlider();
   syncProductPageWithHash();
   setTimeout(function() {
-    if (getProductIdFromHash() === null && !document.getElementById("pdpOverlay").classList.contains("open")) {
+    const pdpOverlay = document.getElementById("pdpOverlay");
+    if (getProductIdFromHash() === null && !(pdpOverlay && pdpOverlay.classList.contains("open"))) {
       openDiscountPopup();
     }
   }, 800);
@@ -2693,7 +2694,7 @@ function showToast(msg) {
 function getProductIdFromHash() {
   if (!location.hash || !location.hash.startsWith("#product-")) return null;
   const id = parseInt(location.hash.replace("#product-", ""), 10);
-  return Number.isNaN(id) ? null : id;
+  return isNaN(id) ? null : id;
 }
 
 function syncProductPageWithHash() {
@@ -2703,7 +2704,11 @@ function syncProductPageWithHash() {
     if (overlay && overlay.classList.contains("open")) closeProductPage(false);
     return;
   }
-  if (!PRODUCTS.some(function(item) { return item.id === id; })) return;
+  if (!PRODUCTS.some(function(item) { return item.id === id; })) {
+    if (overlay && overlay.classList.contains("open")) closeProductPage(false);
+    if (history.replaceState) history.replaceState({}, document.title, location.pathname + location.search);
+    return;
+  }
   openProductPage(id, false);
 }
 
