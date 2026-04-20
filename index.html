@@ -602,6 +602,14 @@ padding:4px 9px;border-radius:20px;letter-spacing:.02em;border:1px solid rgba(18
 .product-footer{display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:10px;border-top:1px solid var(–border)}
 .product-price{font-family:‘Playfair Display’,serif;font-size:1.15rem;font-weight:600;color:var(–maroon)}
 .product-price-old{font-size:.78rem;color:var(–text-light);text-decoration:line-through;margin-left:4px;font-family:‘Jost’,sans-serif;font-weight:400}
+.product-actions{display:flex;align-items:center;gap:8px}
+.view-spec-btn{
+background:transparent;border:1px solid var(–border);color:var(–text-mid);
+padding:8px 11px;border-radius:999px;
+font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;
+transition:border-color .2s,color .2s,transform .15s;white-space:nowrap;
+}
+.view-spec-btn:hover{border-color:var(–gold);color:var(–maroon);transform:scale(1.03)}
 .add-btn{
 background:linear-gradient(135deg,var(–maroon),var(–maroon-dark));color:#fff;border:none;
 padding:9px 15px;border-radius:999px;
@@ -1175,6 +1183,7 @@ border-radius:3px;transition:all .2s;
 .modal-img{border-radius:8px 8px 0 0;aspect-ratio:4/3}
 .modal-img img{max-height:260px;object-fit:cover;width:100%}
 .modal-body{padding:18px}
+.view-spec-btn{padding:6px 9px;font-size:.68rem}
 .add-btn{padding:6px 10px;font-size:.72rem}
 .results-bar{flex-direction:column;align-items:flex-start}
 }
@@ -2003,7 +2012,12 @@ document.addEventListener("DOMContentLoaded", function() {
   renderGrid();
   loadAccountState();
   initPromoSlider();
-  setTimeout(openDiscountPopup, 800);
+  syncProductPageWithHash();
+  setTimeout(function() {
+    if (getProductIdFromHash() === null && !document.getElementById("pdpOverlay").classList.contains("open")) {
+      openDiscountPopup();
+    }
+  }, 800);
 });
 document.addEventListener("keydown", function(event) {
   if (event.key === "Escape") closeDiscountPopup(false);
@@ -2053,7 +2067,13 @@ function closeAccountModal(restoreScroll = true) {
   const overlay = document.getElementById("accountOverlay");
   overlay.classList.remove("open");
   overlay.setAttribute("aria-hidden", "true");
-  if (restoreScroll && !document.getElementById("cartDrawer").classList.contains("open") && !document.getElementById("modalOverlay").classList.contains("open") && !document.getElementById("discountOverlay").classList.contains("open")) {
+  if (
+    restoreScroll &&
+    !document.getElementById("cartDrawer").classList.contains("open") &&
+    !document.getElementById("modalOverlay").classList.contains("open") &&
+    !document.getElementById("discountOverlay").classList.contains("open") &&
+    !document.getElementById("pdpOverlay").classList.contains("open")
+  ) {
     document.body.style.overflow = "";
   }
 }
@@ -2126,7 +2146,12 @@ function closeDiscountPopup(markSeen = true) {
   if (!popup) return;
   popup.classList.remove("open");
   popup.setAttribute("aria-hidden", "true");
-  if (!document.getElementById("cartDrawer").classList.contains("open") && !document.getElementById("modalOverlay").classList.contains("open")) {
+  if (
+    !document.getElementById("cartDrawer").classList.contains("open") &&
+    !document.getElementById("modalOverlay").classList.contains("open") &&
+    !document.getElementById("accountOverlay").classList.contains("open") &&
+    !document.getElementById("pdpOverlay").classList.contains("open")
+  ) {
     document.body.style.overflow = "";
   }
   if (markSeen) {
@@ -2415,9 +2440,12 @@ function renderGrid() {
               <span class="product-price">₹${p.price.toLocaleString("en-IN")}</span>
               ${oldPriceHTML}
             </div>
-            <button class="add-btn ${inCart ? 'added' : ''}" id="addbtn-${p.id}" onclick="addToCart(${p.id}, event)">
-              ${inCart ? '✓ Added' : '+ Add'}
-            </button>
+            <div class="product-actions">
+              <button class="view-spec-btn" onclick="openProductPage(${p.id}); event.stopPropagation();">View Specs</button>
+              <button class="add-btn ${inCart ? 'added' : ''}" id="addbtn-${p.id}" onclick="addToCart(${p.id}, event)">
+                ${inCart ? '✓ Added' : '+ Add'}
+              </button>
+            </div>
           </div>
         </div>
       </div>`;
@@ -2662,7 +2690,24 @@ function showToast(msg) {
 /* ══════════════════════════════════════════════════════════════
    PRODUCT DETAIL PAGE
 ══════════════════════════════════════════════════════════════ */
-function openProductPage(id) {
+function getProductIdFromHash() {
+  if (!location.hash || !location.hash.startsWith("#product-")) return null;
+  const id = parseInt(location.hash.replace("#product-", ""), 10);
+  return Number.isNaN(id) ? null : id;
+}
+
+function syncProductPageWithHash() {
+  const id = getProductIdFromHash();
+  const overlay = document.getElementById("pdpOverlay");
+  if (id === null) {
+    if (overlay && overlay.classList.contains("open")) closeProductPage(false);
+    return;
+  }
+  if (!PRODUCTS.some(function(item) { return item.id === id; })) return;
+  openProductPage(id, false);
+}
+
+function openProductPage(id, updateHistory = true) {
   const p = PRODUCTS.find(x => x.id === id);
   if (!p) return;
   currentModalId = id;
@@ -2731,16 +2776,16 @@ function openProductPage(id) {
   document.body.style.overflow = "hidden";
 
   // Update hash
-  if (history.pushState) history.pushState({pdpId: id}, p.name, "#product-" + id);
+  if (updateHistory && history.pushState) history.pushState({pdpId: id}, p.name, "#product-" + id);
 }
 
-function closeProductPage() {
+function closeProductPage(updateHistory = true) {
   const overlay = document.getElementById("pdpOverlay");
   overlay.classList.remove("open");
   overlay.setAttribute("aria-hidden", "true");
   document.body.style.overflow = "";
   currentModalId = null;
-  if (location.hash && location.hash.startsWith("#product-")) {
+  if (updateHistory && location.hash && location.hash.startsWith("#product-")) {
     history.pushState({}, document.title, location.pathname + location.search);
   }
 }
@@ -2763,21 +2808,11 @@ function waOrderSingle() {
 
 // Handle browser back button closing the product page
 window.addEventListener("popstate", function(e) {
-  const overlay = document.getElementById("pdpOverlay");
-  if (overlay && overlay.classList.contains("open")) {
-    overlay.classList.remove("open");
-    overlay.setAttribute("aria-hidden", "true");
-    document.body.style.overflow = "";
-    currentModalId = null;
-  }
+  syncProductPageWithHash();
 });
 
-// Handle direct URL with hash on page load
-window.addEventListener("DOMContentLoaded", function() {
-  if (location.hash && location.hash.startsWith("#product-")) {
-    const id = parseInt(location.hash.replace("#product-", ""), 10);
-    if (!isNaN(id)) setTimeout(function() { openProductPage(id); }, 600);
-  }
+window.addEventListener("hashchange", function() {
+  syncProductPageWithHash();
 });
 </script>
 
