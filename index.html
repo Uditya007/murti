@@ -2441,7 +2441,7 @@ function renderGrid() {
               ${oldPriceHTML}
             </div>
             <div class="product-actions">
-              <button class="view-spec-btn" onclick="openProductPage(${p.id}); event.stopPropagation();">View Specs</button>
+              <button class="view-spec-btn" onclick="openProductPage(${p.id});">View Specs</button>
               <button class="add-btn ${inCart ? 'added' : ''}" id="addbtn-${p.id}" onclick="addToCart(${p.id}, event)">
                 ${inCart ? '✓ Added' : '+ Add'}
               </button>
